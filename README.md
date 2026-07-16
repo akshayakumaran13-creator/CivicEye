@@ -25,9 +25,7 @@ Multi‑lingual Support
 Real‑time translation into English, Telugu, Tamil, Hindi, and Spanish for all interface elements, safety guides, and chatbot interactions.
 
 ⚙️ Technical Stack
-Layer	Technology
-Backend	Python (Flask), SQLite3
-Frontend	HTML5, CSS3, JavaScript, Leaflet.js
-Machine Learning	ONNX Runtime (MobileNetV2 classifier)
-Language Model	Groq Cloud API (Llama‑3.1‑8b‑instant)
-Hosting	Render (Docker‑based runtime)
+
+
+<img width="727" height="252" alt="image" src="https://github.com/user-attachments/assets/c9a22e48-e589-48bd-b396-39453c500c65" />
+
