@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CivicEye - Civic Issue Reporter</title>
+  <meta name="description" content="Report civic issues with ML-powered image analysis, real-time maps, and multilingual support."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+  <!-- Welcome Screen Overlay (Space Landing Page & Riddle Game) -->
+  <div class="welcome-overlay" id="welcome-overlay">
+    <div class="landing-page-container">
+      
+      <!-- Left Column: Title & Launch Control -->
+      <div class="landing-left">
+        <div class="landing-logo">👁️</div>
+        <h1 class="landing-title">CivicEye</h1>
+        <p class="landing-tagline">Galactic Community Safety Portal</p>
+        <p class="landing-desc">Identify road hazards, report municipal blocks, and safeguard your streets in real-time. Power up your community's vigilance today.</p>
+        
+        <button class="welcome-start-btn launch-portal-btn" onclick="closeWelcomeOverlay()">
+          Launch Citizen Portal 🚀
+        </button>
+        <p class="launch-hint">Enter the database, live map tracker, and Groq safety assistant.</p>
+      </div>
+
+      <!-- Right Column: Interactive Civic Riddle Game -->
+      <div class="landing-right">
+        <div class="card riddle-card">
+          <div class="riddle-header">
+            <span class="riddle-badge">🎮 Riddle Game</span>
+            <div class="riddle-score">Score: <span id="riddle-score-val">0</span>/4</div>
+          </div>
+          <h3 class="riddle-question" id="riddle-text">I am a hole on the street that devours tires and tests your suspension. What am I?</h3>
+          <div class="riddle-choices" id="riddle-choices-container">
+            <!-- Dynamic Choice Buttons -->
+          </div>
+          <div class="riddle-feedback" id="riddle-feedback-text">Select an answer to solve the riddle!</div>
+          <button class="riddle-next-btn" id="riddle-next-btn" style="display:none" onclick="nextRiddleQuestion()">Next Riddle ➡️</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Animated Background -->
+  <div class="bg-anim" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="particle-grid"></div>
+    <canvas id="bg-canvas" class="bg-canvas"></canvas>
+  </div>
+
+  <!-- Header / Nav -->
+  <header class="header" id="main-header">
+    <div class="header-inner">
+      <div class="logo-area">
+        <div class="logo-icon">👁️</div>
+        <div>
+          <div class="logo-title" data-i18n="title">CivicEye</div>
+          <div class="logo-sub" data-i18n="subtitle">Report Civic Issues. Protect Your Community.</div>
+        </div>
+      </div>
+      <nav class="nav-tabs" role="navigation">
+        <button class="nav-btn active" id="tab-report" onclick="showTab('report')" data-i18n="nav_report">Report</button>
+        <button class="nav-btn" id="tab-dashboard" onclick="showTab('dashboard')" data-i18n="nav_dashboard">Dashboard</button>
+        <button class="nav-btn" id="tab-map" onclick="showTab('map')" data-i18n="nav_map">Map</button>
+        <button class="nav-btn" id="tab-alerts" onclick="showTab('alerts')" data-i18n="nav_alerts">Alerts</button>
+        <button class="nav-btn" id="tab-chatbot" onclick="showTab('chatbot')" data-i18n="nav_chatbot">AI Assistant</button>
+      </nav>
+      <div class="header-controls">
+        <div class="lang-picker" id="lang-picker">
+          <select id="lang-select" onchange="changeLang(this.value)" aria-label="Language selector">
+            <option value="en">EN</option>
+            <option value="te">TE</option>
+            <option value="ta">TA</option>
+            <option value="hi">HI</option>
+            <option value="es">ES</option>
+          </select>
+        </div>
+        <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle theme">
+          <span id="theme-icon">🌙</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <!-- Broadcast Alert Banner -->
+    <div class="alert-banner" id="alert-banner" style="display:none">
+      <span class="alert-banner-badge">⚠️ BROADCAST</span>
+      <span class="alert-banner-text" id="alert-banner-text">Alert: community hazard reported nearby.</span>
+      <button class="alert-banner-close" onclick="document.getElementById('alert-banner').style.display='none'">×</button>
+    </div>
+
+    <!-- ============ TAB: REPORT ============ -->
+    <section class="tab-panel active" id="panel-report">
+      <!-- Stats Row -->
+      <div class="stats-row" id="stats-row">
+        <div class="stat-card" id="stat-total">
+          <div class="stat-icon">📋</div>
+          <div class="stat-num" id="num-total">0</div>
+          <div class="stat-label" data-i18n="stat_total">Total Reports</div>
+        </div>
+        <div class="stat-card stat-active" id="stat-active">
+          <div class="stat-icon">🔴</div>
+          <div class="stat-num" id="num-active">0</div>
+          <div class="stat-label" data-i18n="stat_active">Active Alerts</div>
+        </div>
+        <div class="stat-card stat-resolved" id="stat-resolved">
+          <div class="stat-icon">✅</div>
+          <div class="stat-num" id="num-resolved">0</div>
+          <div class="stat-label" data-i18n="stat_resolved">Resolved</div>
+        </div>
+        <div class="stat-card stat-high" id="stat-high">
+          <div class="stat-icon">⚠️</div>
+          <div class="stat-num" id="num-high">0</div>
+          <div class="stat-label" data-i18n="stat_high">High Severity</div>
+        </div>
+      </div>
+
+      <!-- Upload Card -->
+      <div class="card upload-card" id="upload-card">
+        <h2 class="card-title" data-i18n="upload_title">Upload Image</h2>
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()"
+             ondragover="handleDragOver(event)" ondrop="handleDrop(event)" role="button" tabindex="0">
+          <input type="file" id="file-input" accept="image/*" onchange="handleFileSelect(event)" hidden/>
+          <div class="dropzone-icon" id="dz-icon">📸</div>
+          <div class="dropzone-text" id="dz-text" data-i18n="upload_subtitle">Drop civic issue image here or click to upload</div>
+          <div class="dropzone-hint" data-i18n="upload_hint">PNG, JPG, JPEG, GIF, WebP supported</div>
+          <div class="dropzone-preview" id="dz-preview" style="display:none">
+            <img id="preview-img" src="" alt="Preview"/>
+            <div class="preview-name" id="preview-name"></div>
+          </div>
+        </div>
+
+        <!-- GPS Section -->
+        <div class="location-bar">
+          <button class="btn-gps" id="btn-gps" onclick="getGPS()">📍 <span data-i18n="btn_use_gps">Use GPS Location</span></button>
+          <div class="location-fields">
+            <div class="field-group">
+              <label data-i18n="label_lat">Latitude</label>
+              <input type="text" id="inp-lat" placeholder="Enter lat or use GPS"/>
+            </div>
+            <div class="field-group">
+              <label data-i18n="label_lng">Longitude</label>
+              <input type="text" id="inp-lng" placeholder="Enter lng or use GPS"/>
+            </div>
+            <div class="field-group field-place">
+              <label data-i18n="label_place">Location</label>
+              <input type="text" id="inp-place" placeholder="Auto-detected place name"/>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-submit" id="btn-submit" onclick="submitReport()">
+          <span class="btn-spinner" id="submit-spinner" style="display:none">⟳</span>
+          <span data-i18n="btn_submit">Report Issue</span>
+        </button>
+      </div>
+
+      <!-- Result Card -->
+      <div class="card result-card" id="result-card" style="display:none">
+        <div class="result-header">
+          <div class="result-badge" id="result-severity-badge">High</div>
+          <div class="result-category" id="result-cat-label"></div>
+          <div class="result-id" id="result-id-label"></div>
+        </div>
+        <div class="result-meta-row">
+          <div class="meta-item"><span class="meta-icon">📍</span><span id="result-place-val"></span></div>
+          <div class="meta-item"><span class="meta-icon">🏛️</span><span id="result-authority-val"></span></div>
+        </div>
+        <div class="result-sections">
+          <div class="result-section">
+            <h3>🛡️ <span data-i18n="result_safety">Safety Tips</span></h3>
+            <ul id="result-safety-list"></ul>
+          </div>
+          <div class="result-section">
+            <h3>🚑 <span data-i18n="result_firstaid">First Aid</span></h3>
+            <ul id="result-firstaid-list"></ul>
+          </div>
+        </div>
+        <div class="result-actions">
+          <button class="btn-pdf" onclick="downloadReport()">📄 <span data-i18n="report_generated">Download Report PDF</span></button>
+        </div>
+      </div>
+
+      <!-- Emergency Guidebook Card -->
+      <div class="card guidebook-card">
+        <h2 class="card-title">🛡️ <span data-i18n="guidebook_title">Civic Safety Guidebook</span></h2>
+        <p class="guidebook-desc" data-i18n="guidebook_subtitle">Instant safety measures and first-aid instructions for local hazards.</p>
+        <div class="guidebook-tabs" id="guidebook-tabs"></div>
+        <div class="guidebook-content" id="guidebook-content"></div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: DASHBOARD ============ -->
+    <section class="tab-panel" id="panel-dashboard">
+      <div class="dash-grid">
+        <div class="card dash-chart-card">
+          <h2 class="card-title">📊 Issue Categories</h2>
+          <div class="chart-area" id="cat-chart"></div>
+        </div>
+        <div class="card dash-chart-card">
+          <h2 class="card-title">🎯 Severity Breakdown</h2>
+          <div class="sev-chart">
+            <div class="sev-ring-wrap">
+              <div class="sev-ring" id="sev-ring">
+                <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+                  <circle class="sev-bg" cx="60" cy="60" r="50" fill="none" stroke-width="12"/>
+                  <circle id="ring-high" cx="60" cy="60" r="50" fill="none" stroke-width="12" stroke="#ff6b8a" stroke-dasharray="0 314" stroke-dashoffset="-78" stroke-linecap="round" style="transition:stroke-dasharray 1.2s ease"/>
+                  <circle id="ring-med" cx="60" cy="60" r="50" fill="none" stroke-width="12" stroke="#ffd580" stroke-dasharray="0 314" stroke-dashoffset="-78" stroke-linecap="round" style="transition:stroke-dasharray 1.2s ease 0.2s"/>
+                  <circle id="ring-low" cx="60" cy="60" r="50" fill="none" stroke-width="12" stroke="#80e8b0" stroke-dasharray="0 314" stroke-dashoffset="-78" stroke-linecap="round" style="transition:stroke-dasharray 1.2s ease 0.4s"/>
+                </svg>
+                <div class="ring-center" id="ring-center-text">--</div>
+              </div>
+            </div>
+            <div class="sev-legend">
+              <div class="leg-item"><span class="dot dot-high"></span> High: <b id="leg-high">0</b></div>
+              <div class="leg-item"><span class="dot dot-med"></span> Medium: <b id="leg-med">0</b></div>
+              <div class="leg-item"><span class="dot dot-low"></span> Low: <b id="leg-low">0</b></div>
+            </div>
+          </div>
+        </div>
+        <div class="card dash-full">
+          <h2 class="card-title">📋 Recent Reports</h2>
+          <div class="table-wrap">
+            <table class="reports-table" id="dash-table">
+              <thead>
+                <tr><th>#</th><th>Category</th><th>Severity</th><th>Location</th><th>Date</th><th>Status</th><th>Action</th></tr>
+              </thead>
+              <tbody id="dash-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: MAP ============ -->
+    <section class="tab-panel" id="panel-map">
+      <div class="card map-card">
+        <div class="map-header">
+          <div>
+            <h2 class="card-title" data-i18n="map_title">🗺️ Live Alert Map</h2>
+            <p class="map-sub" data-i18n="map_subtitle">Active civic issues shown in real-time</p>
+          </div>
+          <div class="map-legend">
+            <span class="leg-pin high">🔴 High</span>
+            <span class="leg-pin med">🟡 Medium</span>
+            <span class="leg-pin low">🟢 Low</span>
+            <span class="leg-pin resolved">⚪ Resolved</span>
+          </div>
+        </div>
+        <div id="main-map" class="main-map"></div>
+        <div class="nearby-panel">
+          <div class="nearby-col">
+            <h3>🏥 <span data-i18n="nearby_hospitals">Nearby Hospitals</span></h3>
+            <div id="hospitals-list" class="place-list"><p class="dim">Get GPS to see nearby facilities</p></div>
+          </div>
+          <div class="nearby-col">
+            <h3>🛡️ <span data-i18n="nearby_safe_zones">Nearby Safe Zones</span></h3>
+            <div id="safezones-list" class="place-list"><p class="dim">Get GPS to see safe zones</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: ALERTS ============ -->
+    <section class="tab-panel" id="panel-alerts">
+      <!-- Critical Active Watchlist -->
+      <div class="card watchlist-card" style="margin-bottom: 24px;">
+        <div class="watchlist-header" style="margin-bottom: 16px;">
+          <h2 class="card-title">🚨 Critical Active Watchlist</h2>
+          <p class="watchlist-subtitle" style="font-size:0.8rem; color:var(--text-sub); margin-top:2px;">Highly flagged neighborhood issues requiring urgent attention. Status updates persistently in real-time until resolved.</p>
+        </div>
+        <div class="watchlist-grid" id="watchlist-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:16px;">
+          <!-- Dynamic Watchlist Items -->
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="alerts-header">
+          <h2 class="card-title" data-i18n="alert_title">🚨 Active Alerts</h2>
+          <div class="alert-filters">
+            <button class="filter-btn active" onclick="filterAlerts('Active', this)">Active</button>
+            <button class="filter-btn" onclick="filterAlerts('Resolved', this)">Resolved</button>
+            <button class="filter-btn" onclick="filterAlerts('', this)">All</button>
+          </div>
+        </div>
+        <div id="alerts-grid" class="alerts-grid"></div>
+      </div>
+    </section>
+
+    <!-- ============ TAB: CHATBOT (AI ASSISTANT) ============ -->
+    <section class="tab-panel" id="panel-chatbot">
+      <div class="card chatbot-large-card">
+        <div class="chatbot-large-header">
+          <div class="chatbot-large-info">
+            <span class="chatbot-large-avatar">👁️</span>
+            <div>
+              <h2 class="card-title chatbot-large-title">AI Safety & General Assistant</h2>
+              <p class="chatbot-large-subtitle">Ask questions about civic issues, safety guidelines, first aid, or any general topics.</p>
+            </div>
+          </div>
+          <div class="chatbot-large-actions">
+            <button class="chat-clear-btn-large" onclick="clearChatLarge()" title="Clear Chat" style="background:transparent;border:1px solid var(--surface-border);color:var(--text-sub);padding:6px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:0.8rem;transition:all 0.3s;margin-right:8px;">🗑️ Clear</button>
+            <button class="chat-settings-btn-large" onclick="toggleChatSettingsLarge()" title="Settings">⚙️ Settings</button>
+          </div>
+        </div>
+        
+        <div class="chat-settings-drawer" id="chat-settings-drawer-large" style="display:none; border-radius:var(--radius-sm); margin-bottom:16px;">
+          <label for="chat-api-key-large">Groq API Key (Optional Override):</label>
+          <input type="password" id="chat-api-key-large" placeholder="Enter gsk_..." onchange="saveChatApiKeyLarge(this.value)"/>
+          <p class="chat-settings-hint">Leave blank to use default system key.</p>
+        </div>
+
+        <div class="chat-messages-large" id="chat-messages-large">
+          <div class="chat-msg assistant">
+            Hello! I am CivicEye AI. You can ask me anything you need help with—including reporting issues, safety tips, first aid guides, or normal everyday assistance! How can I help you today?
+          </div>
+        </div>
+
+        <div class="chat-chips" id="chat-chips-large">
+          <button class="chip-btn" onclick="sendChatChipLarge('What is the safety rule for open manholes?')">⚠️ Manhole Safety</button>
+          <button class="chip-btn" onclick="sendChatChipLarge('First aid for electric shock')">🚑 Electric Shock Guide</button>
+          <button class="chip-btn" onclick="sendChatChipLarge('Write a report draft for a broken streetlight')">📝 Write Report Draft</button>
+          <button class="chip-btn" onclick="sendChatChipLarge('How can I prevent water leakages at home?')">💧 Prevent Water Waste</button>
+        </div>
+
+        <form class="chat-input-form" onsubmit="handleChatSubmitLarge(event)">
+          <input type="text" id="chat-input-large" placeholder="Type a message or question..." autocomplete="off" required/>
+          <button type="submit" class="chat-send-btn">🚀</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>CivicEye &copy; 2026 &mdash; Powered by ML Image Analysis + OpenStreetMap</p>
+  </footer>
+
+  <!-- Floating AI Chatbot Widget -->
+  <div class="chat-widget" id="chat-widget">
+    <button class="chat-bubble" id="chat-bubble" onclick="toggleChat()" aria-label="Open AI Assistant">
+      <span class="chat-bubble-icon">💬</span>
+      <span class="chat-pulse"></span>
+    </button>
+    <div class="chat-window" id="chat-window" style="display:none">
+      <div class="chat-header">
+        <div class="chat-header-info">
+          <div class="chat-header-title">👁️ CivicEye Assistant</div>
+          <div class="chat-header-status">online</div>
+        </div>
+        <div class="chat-header-actions">
+          <button class="chat-clear-btn" onclick="clearChat()" title="Clear Chat" style="background:transparent;border:none;color:#fff;cursor:pointer;font-size:1rem;margin-right:8px;opacity:0.85;transition:opacity 0.2s;">🗑️</button>
+          <button class="chat-settings-btn" onclick="toggleChatSettings()" title="Settings">⚙️</button>
+          <button class="chat-close-btn" onclick="toggleChat()">×</button>
+        </div>
+      </div>
+      <div class="chat-settings-drawer" id="chat-settings-drawer" style="display:none">
+        <label for="chat-api-key">Groq API Key (Optional Override):</label>
+        <input type="password" id="chat-api-key" placeholder="Enter gsk_..." onchange="saveChatApiKey(this.value)"/>
+        <p class="chat-settings-hint">Leave blank to use default system key.</p>
+      </div>
+      <div class="chat-messages" id="chat-messages">
+        <div class="chat-msg assistant">
+          Hello! I am your CivicEye safety assistant. Ask me anything about reporting potholes, flooding, garbage, stray animals, or first aid instructions!
+        </div>
+      </div>
+      <div class="chat-chips" id="chat-chips">
+        <button class="chip-btn" onclick="sendChatChip('First aid for electric shock')">🚑 Shock First Aid</button>
+        <button class="chip-btn" onclick="sendChatChip('How do I report a pothole?')">🕳️ Report Pothole</button>
+        <button class="chip-btn" onclick="sendChatChip('What to do during local floods?')">🌊 Flood Action</button>
+        <button class="chip-btn" onclick="sendChatChip('Stray animal bite emergency')">🐕 Animal Bite</button>
+      </div>
+      <form class="chat-input-form" onsubmit="handleChatSubmit(event)">
+        <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off" required/>
+        <button type="submit" class="chat-send-btn">🚀</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/static/script.js"></script>
+</body>
+</html>

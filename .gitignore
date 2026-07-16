@@ -1,0 +1,19 @@
+# Python files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local Database
+reports.db
+
+# Uploaded images
+uploads/*
+!uploads/.gitkeep
+
+# IDE files
+.vscode/
+.idea/
+
+# Secrets & Environment variables
+.env
